@@ -1,4 +1,4 @@
-from django.urls import path,re_path
+from django.urls import path
 from .views import get_todos,logout,user_authenticate,register,create_todos,update_todos,delete_todos,CustomTokenObtainPairView,CustomTokenRefreshView
 
 urlpatterns = [
