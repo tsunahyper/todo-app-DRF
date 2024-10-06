@@ -38,7 +38,7 @@ This is a **Todo App** built using Django REST Framework. It includes full **CRU
      ```
 
 2. **Login:**
-   - **POST** `/api/token/` - Login a user and receive JWT tokens (access & refresh).
+   - **POST** `/api/login/` - Login a user and receive JWT tokens (access & refresh).
    - Request payload:
      ```json
      {
@@ -66,7 +66,7 @@ This is a **Todo App** built using Django REST Framework. It includes full **CRU
      {
        "title": "Finish Django project",
        "description": "Complete the remaining features of the app."
-       "user": <user pk id>,
+       "user": <user pk id>
      }
      ```
 
@@ -77,7 +77,7 @@ This is a **Todo App** built using Django REST Framework. It includes full **CRU
      {
        "title": "Todo 2",
        "description": "Updated todo via API",
-       "user": <user pk id>,
+       "user": <user pk id>
      }
      ```
 
