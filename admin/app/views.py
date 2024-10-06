@@ -1,17 +1,18 @@
 from .models import Todo
 from .serializer import TodoSerializer,UserRegisterSerializer
 
-from rest_framework.decorators import api_view, permission_classes
+from django.shortcuts import get_object_or_404
+
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.request import Request
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,  # Obtain a token pair when a user logs in
-    TokenRefreshView,
-)
-from django.shortcuts import get_object_or_404
+from rest_framework_simplejwt.views import (TokenObtainPairView,TokenRefreshView,)# Obtain a token pair when a user logs in
+from rest_framework import viewsets
+from rest_framework.views import APIView
+from rest_framework.status import HTTP_201_CREATED,HTTP_400_BAD_REQUEST
 
-
+# Create a token pair when a user logs in
 class CustomTokenObtainPairView(TokenObtainPairView):
     def post(self, request: Request, *args, **kwargs) -> Response:
         response = super().post(request, *args, **kwargs)  # Get token pair using parent method, super() allows us to use methods from TokenObtainPairView and post() method in TokenObtainPairView is responsible for handling the token generation when a user logs in
@@ -37,7 +38,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 'message': 'Unable to create tokens. Please check your credentials.'
             }, status=400)
 
-
+# Create a custom refresh token that refreshes the access token without having user to reauthenticate and logged in
 class CustomTokenRefreshView(TokenRefreshView):
     def post(self, request: Request, *args, **kwargs) -> Response:
         try:
@@ -80,90 +81,38 @@ def logout(request):
         }, status=400)  # Return error response
 
 
-# View to verify if the user is authenticated
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])  # Only if the user is authenticated can they access this API
-def user_authenticate(request):
-    return Response({'authenticate_success': True}, status=200)  # Return success response if authenticated
-
-
 # User registration view
 @api_view(['POST'])
 @permission_classes([AllowAny])  # Allow any user (authenticated or not) to access this API
 def register(request):
     serializer = UserRegisterSerializer(data=request.data)  # Use serializer to validate user data
-    
     # Check if the serializer is valid
     if serializer.is_valid():
         serializer.save()  # Save the user if the data is valid
         return Response(serializer.data, status=201)  # Return the saved data with a 201 Created status
-    
     # If the serializer is not valid, return specific validation errors
     return Response({
         'success': False, 
         'Error': serializer.errors  # Return validation errors
     }, status=400)  # Bad request
-
-
-# Get all todos for the authenticated user
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])  # Only if user is authenticated, can they access this API
-def get_todos(request):
-    user = request.user  # Get the logged-in user
-    todos = Todo.objects.filter(user=user)  # Filter todos that belong to the user
-    serializer = TodoSerializer(todos, many=True)  # Serialize the todos
-    return Response(serializer.data)  # Return serialized data
-
-
-# Create a new todo item for the authenticated user
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])  # Only if user is authenticated, can they access this API
-def create_todos(request):
-    user = request.user  # Get the logged-in user
-    data = request.data  # Get the request data
-
-    # Add the user to the data so the todo is associated with the logged-in user
-    data['user'] = user.id
-
-    # Use the serializer to validate the data and save it to the database
-    serializer = TodoSerializer(data=data)
     
-    if serializer.is_valid():  # Check if the data is valid
-        serializer.save()  # Save the valid data to the database
-        return Response(serializer.data, status=201)  # Return the saved data with a 201 Created status
-    else:
-        return Response(serializer.errors, status=400)  # Return validation errors if any
 
+class TodoViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]  # Allow only authenticated users
+    serializer_class = TodoSerializer
 
-# Update a todo item for the authenticated user
-@api_view(['PUT', 'PATCH'])
-@permission_classes([IsAuthenticated])  # Only authenticated users can update todos
-def update_todos(request, todo_id):
-    user = request.user  # Get the currently logged-in user
-    todo = get_object_or_404(Todo, id=todo_id, user=user)  # Ensure the todo exists and belongs to the user
-    
-    # If the todo exists, update it
-    if todo:
-        data = request.data  # Get the data from the request
-        # Use the serializer to validate the updated data
-        serializer = TodoSerializer(todo, data=data, partial=True)  # `partial=True` allows partial updates
-        
-        if serializer.is_valid():  # Check if the data is valid
-            serializer.save()  # Save the updated data
-            return Response(serializer.data, status=200)  # Return the updated data with a 200 OK status
-        else:
-            return Response(serializer.errors, status=400)  # Return validation errors if any
-    
-    # If no todo exists, return an error message
-    return Response({'Message':'Data is empty, there is no todo notes created in the list'})  # Return error message
+    def get_queryset(self):
+        user = self.request.user # Get the currently logged-in user
+        # Return todos for the logged-in user
+        return Todo.objects.filter(user=user) 
 
-
-# Delete a todo item for the authenticated user
-@api_view(['DELETE'])
-@permission_classes([IsAuthenticated])  # Only authenticated users can delete todos
-def delete_todos(request, todo_id):
-    user = request.user  # Get the currently logged-in user
-    todo = get_object_or_404(Todo, id=todo_id, user=user)  # Ensure the todo exists and belongs to the user
-    
-    todo.delete()  # Delete the todo
-    return Response({'message': 'Todo deleted successfully!'}, status=204)  # Return 204 No Content status after deletion
+    # Custom action for searching todos by title
+    @action(detail=False, methods=['GET'], url_path="search")
+    def search_todos(self, request):
+        search_param = request.GET.get("title", None)  # Get the search query from URL params
+        if search_param:
+            # Filter todos by title containing the search_param (case-insensitive)
+            todos = self.get_queryset().filter(title__icontains=search_param) # Get a dataset based on the search parameters that contains a word from the title
+            serializer = TodoSerializer(todos, many=True) # Set to many incoming datas
+            return Response(serializer.data)  # Return serialized todo data
+        return Response({"message": "No search parameter provided"}, status=400)
