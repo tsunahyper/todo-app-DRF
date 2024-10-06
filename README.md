@@ -60,33 +60,29 @@ This is a **Todo App** built using Django REST Framework. It includes full **CRU
    - **GET** `/api/todo/` - Retrieve all todos for the authenticated user.
    
 2. **Create Todo:**
-   - **POST** `/api/todo/create/` - Create a new todo.
+   - **POST** `/api/todo/` - Create a new todo.
    - Sample Request payload:
      ```json
      {
        "title": "Finish Django project",
        "description": "Complete the remaining features of the app."
+       "user": <user pk id>,
      }
      ```
 
 3. **Update Todo:**
-   - **PUT** `/api/todo/update/<todo_id>/` - Update an existing todo.
+   - **PUT** `/api/todo/<todo_id>/` - Update an existing todo.
    - Sample Request payload:
      ```json
      {
        "title": "Todo 2",
-       "description": "Updated todo via API"
+       "description": "Updated todo via API",
+       "user": <user pk id>,
      }
      ```
 
 4. **Delete Todo:**
-   - **DELETE** `/api/todo/delete/<todo_id>/` - Delete a todo.
-   - Sample Response:
-     ```json
-     {
-       "message": "Todo deleted successfully!"
-     }
-     ```
+   - **DELETE** `/api/todo/<todo_id>/` - Delete a todo.
 
 ## How to Use
 
